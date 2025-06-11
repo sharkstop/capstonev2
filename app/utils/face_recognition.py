@@ -9,6 +9,7 @@ from app.database import User, AccessLog
 import json
 import numpy as np
 from PIL import Image
+import logging
 
 def ensure_directory_exists(directory: str):
     """Ensure the directory exists, create it if it doesn't"""
@@ -17,13 +18,14 @@ def ensure_directory_exists(directory: str):
 
 def decode_face_encoding(encoded_str: str) -> Optional[np.ndarray]:
     """Decode a JSON string face encoding to numpy array"""
+    if not encoded_str:
+        logging.warning("Input 'encoded_str' is None or empty.")
+        return None
     try:
-        if not encoded_str:
-            return None
         data = json.loads(encoded_str)
         return np.array(data, dtype=np.float64)
     except (json.JSONDecodeError, ValueError) as e:
-        print(f"Error decoding face encoding: {e}")
+        logging.warning(f"Error decoding face encoding: {e}. Input string: '{encoded_str}'")
         return None
 
 def compare_face_with_database(db: Session, face_encoding: np.ndarray, threshold: float = 0.6, user_type: Optional[str] = None) -> Tuple[Optional[User], float]:
@@ -31,32 +33,68 @@ def compare_face_with_database(db: Session, face_encoding: np.ndarray, threshold
     Compare a face encoding with all users in the database
     Returns the best match user and confidence score
     """
+    logging.info("compare_face_with_database called.")
     if not isinstance(face_encoding, np.ndarray) or face_encoding.size == 0:
+        # Consider logging here if this check isn't expected to be hit due to upstream validation
         raise HTTPException(status_code=400, detail="Invalid face encoding provided")
 
-    query = db.query(User).filter(User.is_active == True)
-    if user_type:
-        query = query.filter(User.user_type == user_type)
-    users = query.all()
+    try:
+        query = db.query(User).filter(User.is_active == True)
+        if user_type:
+            query = query.filter(User.user_type == user_type)
+        users = query.all()
+        logging.info(f"Retrieved {len(users)} active users from database (user_type: {user_type if user_type else 'any'}).")
+    except Exception as e:
+        logging.error(f"Database error while fetching users: {e}")
+        # Depending on expected behavior, either re-raise or return a default
+        return None, 0.0 # Or raise HTTPException(status_code=500, detail="Database error")
 
     if not users:
+        logging.info("No active users found matching criteria.")
         return None, 0.0
 
     best_match = None
     best_match_distance = float('inf')
 
-    for user in users:
-        stored_encoding = decode_face_encoding(user.face_descriptor)
-        if stored_encoding is None or stored_encoding.size != face_encoding.size:
-            continue
+    try:
+        for user in users:
+            if not user.face_descriptor:
+                logging.warning(f"User ID {user.id} has no face_descriptor. Skipping.")
+                continue
 
-        distance = face_recognition.face_distance([stored_encoding], face_encoding)[0]
-        if distance < best_match_distance:
-            best_match = user
-            best_match_distance = distance
+            stored_encoding = decode_face_encoding(user.face_descriptor)
+
+            if stored_encoding is None:
+                logging.warning(f"Failed to decode face_descriptor for User ID {user.id}. Skipping.")
+                continue
+
+            if stored_encoding.size != face_encoding.size:
+                logging.warning(f"Face encoding size mismatch for User ID {user.id}. DB: {stored_encoding.size}, Input: {face_encoding.size}. Skipping.")
+                continue
+
+            distance = face_recognition.face_distance([stored_encoding], face_encoding)[0]
+            if distance < best_match_distance:
+                best_match = user
+                best_match_distance = distance
+    except Exception as e:
+        user_id_for_log = user.id if 'user' in locals() and hasattr(user, 'id') else "unknown"
+        logging.error(f"Error during face comparison loop for User ID {user_id_for_log}: {e}")
+        # Decide if to continue with users processed so far or return error
+        # For now, let's assume we stop and return based on matches found *before* the error
+        # If no matches yet, this will effectively be (None, 0.0) after confidence calculation
 
     confidence = max(0, 1 - best_match_distance) if best_match_distance <= 1.0 else 0
-    return (best_match, confidence) if best_match_distance <= threshold else (None, confidence)
+
+    final_match_user_id = best_match.id if best_match else "No match"
+    if best_match and best_match_distance <= threshold:
+        logging.info(f"Best match found: User ID {final_match_user_id}, Confidence: {confidence:.4f}, Distance: {best_match_distance:.4f}. Threshold: {threshold}")
+        return best_match, confidence
+    else:
+        if best_match: # Match found but below threshold
+            logging.info(f"Match found (User ID {best_match.id}, Distance: {best_match_distance:.4f}) but below threshold {threshold}. Confidence: {confidence:.4f}. Returning no match.")
+        else: # No match at all or error led to no best_match
+             logging.info(f"No suitable match found. Best distance: {best_match_distance:.4f}, Confidence: {confidence:.4f}. Threshold: {threshold}")
+        return None, confidence
 
 def save_unknown_face(image_file: UploadFile, location: Optional[str] = None, device_id: Optional[str] = None) -> Optional[str]:
     """Save unknown face image from UploadFile and return path"""

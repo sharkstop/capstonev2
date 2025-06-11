@@ -13,6 +13,7 @@ from app.schemas import AccessLogResponse, VerificationResult  # تغيير Veri
 from app.utils.face_utils import process_face_image
 from app.utils.face_recognition import compare_face_with_database, save_unknown_face, log_access_attempt
 from app.utils.smart_lock import unlock_door
+import logging
 
 # Router
 router = APIRouter()
@@ -29,6 +30,7 @@ async def verify_face(
     Verify a face against registered users
     Can optionally unlock a door if face is recognized and unlock=True
     """
+    logging.info(f"verify_face called. Location: {location}, Device ID: {device_id}, Unlock: {unlock}")
     try:
         # Store original image data for potential unknown face storage
         image_data = await face_image.read()
@@ -40,7 +42,9 @@ async def verify_face(
         face_encoding = await process_face_image(face_image)
         
         # Compare with database
+        logging.info(f"Starting face comparison for location: {location}, device_id: {device_id}")
         user, confidence = compare_face_with_database(db, face_encoding)
+        logging.info(f"Face comparison completed. User found: {bool(user)}, Confidence: {confidence:.4f}")
         
         if user:
             # Log successful access
