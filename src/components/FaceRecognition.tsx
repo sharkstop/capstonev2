@@ -431,13 +431,20 @@ const FaceRecognition: React.FC = () => {
 
   // Removed logAccessAttempt function as backend handles logging internally
 
-  const identifyFace = async (faceEncoding: number[]): Promise<VerificationResponse> => {
+  const identifyFace = async (imageBlob: Blob): Promise<VerificationResponse> => {
     try {
+      const formData = new FormData();
+      formData.append('face_image', imageBlob, 'face.jpg');
+      if (location) {
+        formData.append('location', location);
+      }
+      // Note: device_id and unlock parameters are not currently available in this component's state/props easily.
+      // If needed, they would be added to formData here. E.g.:
+      // formData.append('device_id', deviceIdVariable);
+      // formData.append('unlock', String(unlockVariable));
+
       // TODO: Use REACT_APP_API_BASE_URL from environment variables if available and consistent with project setup
-      const response = await axios.post('http://localhost:8000/api/verify', {
-        face_encoding: JSON.stringify(faceEncoding),
-        location,
-      });
+      const response = await axios.post('http://localhost:8000/api/verify', formData);
       return response.data;
     } catch (err) {
       console.error("خطأ في التعرف على الوجه:", err);
@@ -450,19 +457,38 @@ const FaceRecognition: React.FC = () => {
     try {
       setIsLoading(true);
       if (videoRef.current && isCaptureInitialized) {
-        let faceDescriptor = await getFaceDescriptorFromMedia(videoRef.current);
-        if (faceDescriptor) {
+        // Capture current video frame as a Blob
+        const videoElement = videoRef.current;
+        const canvas = document.createElement('canvas');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          toast.error("فشل في التقاط صورة من الفيديو.");
+          setIsLoading(false);
+          return;
+        }
+        ctx.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
+
+        const imageBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg'));
+
+        if (imageBlob) {
           if (autoEnhance && !lightingAnalysis.isOptimal) {
-            toast.info("جاري تحسين جودة الصورة...");
+            toast.info("جاري تحسين جودة الصورة (تأثير التحسين هنا رمزي، التحسين الفعلي يجب أن يكون قبل الالتقاط أو على الخادم).");
             await new Promise((res) => setTimeout(res, 500));
           }
 
-          const faceEncoding = Array.from(faceDescriptor);
-          const landmarks = extractFaceLandmarks(faceDescriptor);
-          setFaceLandmarks(landmarks);
-          drawLandmarks(landmarks, videoRef.current);
+          // Optional: For local feedback, you might still want to get and display landmarks.
+          // This part can be kept if local UI feedback of face detection is desired before server response.
+          // However, the primary data for verification is now the imageBlob.
+          let faceDescriptor = await getFaceDescriptorFromMedia(videoRef.current);
+          if (faceDescriptor) {
+            const landmarks = extractFaceLandmarks(faceDescriptor);
+            setFaceLandmarks(landmarks);
+            drawLandmarks(landmarks, videoRef.current);
+          }
 
-          const response = await identifyFace(faceEncoding);
+          const response = await identifyFace(imageBlob);
           // Logging is now handled by the backend within the /api/verify call
           if (response.success && response.confidence >= confidenceThreshold) {
             toast.success(`مرحبًا ${response.user?.name}!`, { duration: 5000 });
