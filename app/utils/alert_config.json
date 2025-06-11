@@ -1,0 +1,105 @@
+{
+  "alerts": {
+    "unknown_person": {
+      "name": "Unknown Person",
+      "description": "Alert when an unknown person is detected",
+      "sound": "alarm.mp3",
+      "volume": 0.7,
+      "enabled": true,
+      "severity": "medium",
+      "notification_channels": [
+        "sound",
+        "dashboard",
+        "email"
+      ]
+    },
+    "multiple_faces": {
+      "name": "Multiple Faces",
+      "description": "Alert when multiple faces are detected",
+      "sound": "multiple_faces.mp3",
+      "volume": 0.5,
+      "enabled": true,
+      "severity": "low",
+      "notification_channels": [
+        "sound",
+        "dashboard"
+      ]
+    },
+    "unauthorized_access": {
+      "name": "Unauthorized Access",
+      "description": "Alert when unauthorized access is attempted",
+      "sound": "unauthorized.mp3",
+      "volume": 0.8,
+      "enabled": true,
+      "severity": "high",
+      "notification_channels": [
+        "sound",
+        "dashboard",
+        "email",
+        "sms"
+      ]
+    },
+    "access_denied": {
+      "name": "Access Denied",
+      "description": "Alert when access is denied",
+      "sound": "access_denied.mp3",
+      "volume": 0.7,
+      "enabled": true,
+      "severity": "medium",
+      "notification_channels": [
+        "sound",
+        "dashboard"
+      ]
+    },
+    "access_granted": {
+      "name": "Access Granted",
+      "description": "Alert when access is granted",
+      "sound": "access_granted.mp3",
+      "volume": 0.5,
+      "enabled": true,
+      "severity": "low",
+      "notification_channels": [
+        "sound",
+        "dashboard"
+      ]
+    },
+    "vip_detected": {
+      "name": "VIP Detected",
+      "description": "Alert when a VIP is detected",
+      "sound": "vip_detected.mp3",
+      "volume": 0.7,
+      "enabled": true,
+      "severity": "medium",
+      "notification_channels": [
+        "sound",
+        "dashboard",
+        "email"
+      ]
+    },
+    "low_confidence": {
+      "name": "Low Confidence",
+      "description": "Alert when face recognition has low confidence",
+      "sound": "low_confidence.mp3",
+      "volume": 0.6,
+      "enabled": true,
+      "severity": "low",
+      "notification_channels": [
+        "sound",
+        "dashboard"
+      ]
+    },
+    "system_error": {
+      "name": "System Error",
+      "description": "Alert when a system error occurs",
+      "sound": "system_error.mp3",
+      "volume": 0.8,
+      "enabled": true,
+      "severity": "high",
+      "notification_channels": [
+        "sound",
+        "dashboard",
+        "email"
+      ]
+    }
+  }
+}

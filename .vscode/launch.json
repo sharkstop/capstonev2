@@ -1,0 +1,26 @@
+{
+    "version": "0.2.0",
+    "compounds": [
+      {
+        "name": "Run Backend + Frontend",
+        "configurations": ["FastAPI", "React Vite"]
+      }
+    ],
+    "configurations": [
+      {
+        "name": "FastAPI",
+        "type": "python",
+        "request": "launch",
+        "module": "uvicorn",
+        "args": ["main:app", "--reload"],
+        "console": "integratedTerminal"
+      },
+      {
+        "name": "React Vite",
+        "type": "node-terminal",
+        "request": "launch",
+        "command": "npm run dev"
+      }
+    ]
+  }
+  
