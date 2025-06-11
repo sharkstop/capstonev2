@@ -429,25 +429,12 @@ const FaceRecognition: React.FC = () => {
     }
   };
 
-  const logAccessAttempt = async (status: string, user?: string, location?: string, deviceId?: string) => {
-    const timestamp = new Date().toLocaleString('en-US', { timeZone: 'UTC' });
-    try {
-      await axios.post('http://localhost:8000/api/access/log', {
-        status,
-        user: user || 'Unknown',
-        location: location || 'Unknown',
-        deviceId: deviceId || 'Unknown',
-        timestamp,
-      });
-    } catch (err) {
-      console.error("خطأ في تسجيل محاولة الوصول:", err);
-      playAlarmSound();
-    }
-  };
+  // Removed logAccessAttempt function as backend handles logging internally
 
   const identifyFace = async (faceEncoding: number[]): Promise<VerificationResponse> => {
     try {
-      const response = await axios.post('http://localhost:8000/api/access/verify', {
+      // TODO: Use REACT_APP_API_BASE_URL from environment variables if available and consistent with project setup
+      const response = await axios.post('http://localhost:8000/api/verify', {
         face_encoding: JSON.stringify(faceEncoding),
         location,
       });
@@ -476,7 +463,7 @@ const FaceRecognition: React.FC = () => {
           drawLandmarks(landmarks, videoRef.current);
 
           const response = await identifyFace(faceEncoding);
-          await logAccessAttempt(response.success ? 'Success' : 'Failed', response.user?.name, location, 'CAM-01');
+          // Logging is now handled by the backend within the /api/verify call
           if (response.success && response.confidence >= confidenceThreshold) {
             toast.success(`مرحبًا ${response.user?.name}!`, { duration: 5000 });
             if (location) toast.info(`تم فتح الباب في ${location}`, { duration: 5000 });
@@ -492,14 +479,14 @@ const FaceRecognition: React.FC = () => {
           }
         } else {
           toast.error("لم يتم العثور على وجه.", { duration: 5000 });
-          await logAccessAttempt('Failed', undefined, location, 'CAM-01');
+          // Logging is now handled by the backend
           playAlarmSound();
         }
       }
     } catch (error) {
       console.error("خطأ في التعرف:", error);
       toast.error("فشل التعرف على الوجه.", { duration: 5000 });
-      await logAccessAttempt('Failed', undefined, location, 'CAM-01');
+      // Logging is now handled by the backend
       playAlarmSound();
     } finally {
       setIsLoading(false);
