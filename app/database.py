@@ -47,6 +47,7 @@ class AccessLog(Base):
     confidence = Column(Float, nullable=True)  # Confidence score for face recognition
     location = Column(String, nullable=True)  # Location of access attempt
     image_path = Column(String, nullable=True)  # Path to saved image (for unknown faces)
+    device_id = Column(String, nullable=True) # ID of the device making the access attempt
     
     # Relationships
     user = relationship("User", back_populates="access_logs")

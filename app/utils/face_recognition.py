@@ -10,6 +10,7 @@ import json
 import numpy as np
 from PIL import Image
 import logging
+import io
 
 def ensure_directory_exists(directory: str):
     """Ensure the directory exists, create it if it doesn't"""
@@ -96,22 +97,26 @@ def compare_face_with_database(db: Session, face_encoding: np.ndarray, threshold
              logging.info(f"No suitable match found. Best distance: {best_match_distance:.4f}, Confidence: {confidence:.4f}. Threshold: {threshold}")
         return None, confidence
 
-def save_unknown_face(image_file: UploadFile, location: Optional[str] = None, device_id: Optional[str] = None) -> Optional[str]:
-    """Save unknown face image from UploadFile and return path"""
+def save_unknown_face(image_data: bytes, location: Optional[str] = None, device_id: Optional[str] = None) -> Optional[str]:
+    """Save unknown face image from bytes and return path"""
     try:
         ensure_directory_exists("unknown_faces")
-        if not image_file or image_file.size == 0:
-            raise ValueError("Invalid image file")
+        if not image_data:
+            logging.warning("save_unknown_face called with empty image_data.")
+            raise ValueError("Invalid image data: received empty bytes.")
 
-        # Convert UploadFile to PIL Image and save
-        image = Image.open(image_file.file).convert("RGB")
+        # Convert bytes to PIL Image and save
+        image = Image.open(io.BytesIO(image_data)).convert("RGB")
         filename = f"unknown_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex}.jpg"
         path = os.path.join("unknown_faces", filename)
 
         image.save(path, "JPEG", quality=85)
         return path
+    except ValueError as ve: # Catch specific error for invalid data
+        logging.error(f"ValueError in save_unknown_face: {ve}")
+        return None
     except Exception as e:
-        print(f"Error saving unknown face: {e}")
+        logging.error(f"Error saving unknown face: {e}")
         return None
 
 def log_access_attempt(db: Session, user_id: Optional[int] = None, success: bool = False, confidence: float = 0.0, image_path: Optional[str] = None, location: Optional[str] = None, device_id: Optional[str] = None) -> Optional[int]:
